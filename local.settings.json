@@ -1,0 +1,9 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "AzureWebJobsDashboard": "UseDevelopmentStorage=true",
+    "CLIENT_ID": "0b515d72-d33c-40bb-9e4c-df88eda61f21",
+    "CLIENT_SECRET": "153aMgGNOczD-Ms6tjUl~_l770o91a~DxA"
+  }
+}
