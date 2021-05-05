@@ -43,7 +43,6 @@ namespace ChangeUserTypeByHttp
             ChangeGuestUserType(graphClient, log, name);
 
             return req.CreateResponse(HttpStatusCode.OK, "Finished. ");
-
         }
 
         public static string GetOneAccessToken()
