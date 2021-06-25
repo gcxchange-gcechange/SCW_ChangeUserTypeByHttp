@@ -13,6 +13,7 @@ using System.IO;
 using System.Web.Script.Serialization;
 using Microsoft.Graph;
 using System.Net.Http.Headers;
+using System.Collections.Generic;
 
 namespace ChangeUserTypeByHttp
 {
@@ -24,25 +25,42 @@ namespace ChangeUserTypeByHttp
             log.Info("C# HTTP trigger function processed a request.");
 
             // parse query parameter
-            string name = req.GetQueryNameValuePairs()
-                .FirstOrDefault(q => string.Compare(q.Key, "name", true) == 0)
+            string email = req.GetQueryNameValuePairs()
+                .FirstOrDefault(q => string.Compare(q.Key, "email", true) == 0)
                 .Value;
 
-            if (name == null)
+            if (email == null || email == "")
             {
                 // Get request body
                 dynamic data = await req.Content.ReadAsAsync<object>();
-                name = data?.name;
+                email = data?.email;
+
+                if (email == null)
+                {
+                    return req.CreateResponse(HttpStatusCode.BadRequest, "Error, no email found. ");
+                }
             }
 
-            log.Info(name);
+            log.Info($"email is {email}");
 
             var authResult = GetOneAccessToken();
             var graphClient = GetGraphClient(authResult);
+            var userId = GetUserID(graphClient, email, log).GetAwaiter().GetResult();
 
-            ChangeGuestUserType(graphClient, log, name);
+            if (userId == null)
+            {
+                return req.CreateResponse(HttpStatusCode.BadRequest, $"no user id found for {email}");
+            }
+            var changeusertype = ChangeGuestUserType(graphClient, log, userId);
 
-            return req.CreateResponse(HttpStatusCode.OK, "Finished. ");
+            if (changeusertype == "Success")
+            {
+                return req.CreateResponse(HttpStatusCode.OK, $"Usertype of {email} has been updated");
+            }
+            else
+            {
+                return req.CreateResponse(HttpStatusCode.BadRequest, $"Usertype not change {changeusertype}");
+            }
         }
 
         public static string GetOneAccessToken()
@@ -89,7 +107,6 @@ namespace ChangeUserTypeByHttp
 
                 using (HttpWebResponse response = request.GetResponse() as HttpWebResponse)
                 {
-
                     using (var reader = new StreamReader(response.GetResponseStream()))
                     {
                         JavaScriptSerializer js = new JavaScriptSerializer();
@@ -97,7 +114,6 @@ namespace ChangeUserTypeByHttp
                         LgObject myojb = (LgObject)js.Deserialize(objText, typeof(LgObject));
                         token = myojb.access_token;
                     }
-
                 }
                 return token;
             }
@@ -121,24 +137,58 @@ namespace ChangeUserTypeByHttp
             return graphClient;
         }
 
-        public static async void ChangeGuestUserType(GraphServiceClient graphClient, TraceWriter Log, string userIdOrEmail)
+        public static string ChangeGuestUserType(GraphServiceClient graphClient, TraceWriter Log, List<string> userId)
         {
+            var message = "";
             var guestUser = new User
             {
                 UserType = "Member"
             };
             try
             {
-                await graphClient.Users[userIdOrEmail]  //"6c3520af-ddd8-4f77-b18d-44e70b88f4d9"
+                 graphClient.Users[userId[0]]  //"6c3520af-ddd8-4f77-b18d-44e70b88f4d9"
                 .Request()
                 .UpdateAsync(guestUser);
-                Log.Info($"Change {userIdOrEmail} user type to member successfully");
+                Log.Info($"Change {userId[0]} user type to member successfully");
+                message = "Success";
             }
             catch (Exception ex)
             {
                 Log.Info($"error message: {ex.Message}");
+                message = $"Error: {ex.Message}";
             }
+            return message;
+        }
 
+        public static async Task<List<string>> GetUserID(GraphServiceClient graphClient, string email, TraceWriter Log)
+        {
+            List<string> userId = new List<string>();
+            try
+            {
+                var request = await graphClient
+                    .Users
+                    .Request()
+                    .Filter($"userType eq 'guest' and mail eq '{email}'") // apply filter
+                    .GetAsync();
+
+                if (request == null)
+                {   
+                    return null;
+                }
+                else
+                {
+                    foreach (var id in request)
+                    {
+                        userId.Add(id.Id);
+                    }
+                    return userId;
+                }
+            }
+            catch (ServiceException ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                return null;
+            }
         }
 
     }
