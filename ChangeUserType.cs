@@ -55,11 +55,19 @@ namespace ChangeUserTypeByHttp
 
             if (changeusertype == "Success")
             {
-                return req.CreateResponse(HttpStatusCode.OK, $"Usertype of {email} has been updated");
+                var welcomeGroup = AddUserWelcomeGroup(graphClient, log, userId);
+                if (welcomeGroup == "Success")
+                {
+                    return req.CreateResponse(HttpStatusCode.OK, $"Usertype of {email} has been updated");
+                }
+                else
+                {
+                    return req.CreateResponse(HttpStatusCode.BadRequest, $"User was not add to the welcome group {welcomeGroup}");
+                }
             }
             else
             {
-                return req.CreateResponse(HttpStatusCode.BadRequest, $"Usertype not change {changeusertype}");
+                return req.CreateResponse(HttpStatusCode.BadRequest, $"Usertype was not updated {changeusertype}");
             }
         }
 
@@ -189,6 +197,31 @@ namespace ChangeUserTypeByHttp
                 Console.WriteLine($"Error: {ex.Message}");
                 return null;
             }
+        }
+        public static string AddUserWelcomeGroup(GraphServiceClient graphClient, TraceWriter Log, List<string> userId)
+        {
+            var message = "";
+            string welcomeGroup = ConfigurationManager.AppSettings["welcomeGroup"];
+
+            try
+            {
+                var directoryObject = new DirectoryObject
+                {
+                    Id = userId[0]
+                };
+
+                graphClient.Groups[welcomeGroup].Members.References
+                    .Request()
+                    .AddAsync(directoryObject);
+                Log.Info($" User add to welcomeGroup successfully.");
+                message = "Success";
+            }
+            catch (Exception ex)
+            {
+                Log.Info($"error message: {ex.Message}");
+                message = $"Error: {ex.Message}";
+            }
+            return message;
         }
 
     }
