@@ -51,23 +51,21 @@ namespace ChangeUserTypeByHttp
             {
                 return req.CreateResponse(HttpStatusCode.BadRequest, $"no user id found for {email}");
             }
-            var changeusertype = ChangeGuestUserType(graphClient, log, userId);
-
-            if (changeusertype == "Success")
+            else
             {
+                var changeusertype = ChangeGuestUserType(graphClient, log, userId);
                 var welcomeGroup = AddUserWelcomeGroup(graphClient, log, userId);
-                if (welcomeGroup == "Success")
+
+                if (changeusertype != "Success")
                 {
-                    return req.CreateResponse(HttpStatusCode.OK, $"Usertype of {email} has been updated");
+                     return req.CreateResponse(HttpStatusCode.BadRequest, $"Usertype was not updated {changeusertype}");
                 }
-                else
+
+                if (welcomeGroup != "Success")
                 {
                     return req.CreateResponse(HttpStatusCode.BadRequest, $"User was not add to the welcome group {welcomeGroup}");
                 }
-            }
-            else
-            {
-                return req.CreateResponse(HttpStatusCode.BadRequest, $"Usertype was not updated {changeusertype}");
+                return req.CreateResponse(HttpStatusCode.OK, $"User {email} has been updated with success");
             }
         }
 
